@@ -1575,7 +1575,7 @@ function renderVGEvolucao() {
   const ctx = document.getElementById('vgChartEvolucao').getContext('2d');
   const MESES_ALL = ['jan','fev','mar','abr'];
   const LABS = ['Jan/26','Fev/26','Mar/26','Abr/26'];
-  const todas = getEmps();
+  const todas = ['MR','VIVA'];
   const somaM = (chave,m) => todas.reduce((s,e)=>s+((RAW[e][chave]||{})[m]||0),0);
 
   const rb   = MESES_ALL.map(m=>somaM('receita_bruta',m)/1e6);
@@ -1624,17 +1624,30 @@ function renderVGEmpresas() {
   const MESES_ALL = ['jan','fev','mar','abr'];
   const LABS = ['Jan/26','Fev/26','Mar/26','Abr/26'];
   const somaE = (emp,chave) => MESES_ALL.map(m=>((RAW[emp][chave]||{})[m]||0)/1e6);
-  const empsAtivas = getEmps();
-  const COR = {MR:{r:'rgba(45,91,142,0.85)',res:'rgba(45,91,142,0.3)',bc:'#2D5B8E'},VIVA:{r:'rgba(46,125,82,0.85)',res:'rgba(46,125,82,0.3)',bc:'#2E7D52'}};
-  const datasets = [];
-  empsAtivas.forEach(e => {
-    datasets.push({label:(e==='MR'?'MR Delta':'Viva Delta')+' — Receita', data:somaE(e,'receita_bruta'), backgroundColor:COR[e].r, borderRadius:5, borderSkipped:false});
-    datasets.push({label:(e==='MR'?'MR Delta':'Viva Delta')+' — Resultado', data:somaE(e,'resultado_liq'), backgroundColor:COR[e].res, borderColor:COR[e].bc, borderWidth:1.5, borderRadius:5, borderSkipped:false});
-  });
-  vgCharts.emp = new Chart(ctx,{type:'bar',data:{labels:LABS,datasets:datasets},options:{
-    responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{labels:{font:{size:10},boxWidth:10,color:'#6B6560',padding:10}},
-      tooltip:{backgroundColor:'rgba(26,58,92,0.94)',titleColor:'#fff',bodyColor:'#cdd8e8',padding:10,cornerRadius:8}},
+
+  const mkGrad = (c1,c2) => {
+    const g = ctx.createLinearGradient(0,0,0,190);
+    g.addColorStop(0,c1); g.addColorStop(1,c2); return g;
+  };
+
+  vgCharts.emp = new Chart(ctx,{type:'bar',data:{labels:LABS,datasets:[
+    {label:'MR Delta — Receita', data:somaE('MR','receita_bruta'),
+      backgroundColor:mkGrad('rgba(45,91,142,0.9)','rgba(45,91,142,0.4)'), borderRadius:5, borderSkipped:false},
+    {label:'Viva Delta — Receita', data:somaE('VIVA','receita_bruta'),
+      backgroundColor:mkGrad('rgba(46,125,82,0.9)','rgba(46,125,82,0.4)'), borderRadius:5, borderSkipped:false},
+    {label:'MR Delta — Resultado', data:somaE('MR','resultado_liq'),
+      backgroundColor:'rgba(45,91,142,0.35)', borderRadius:5, borderSkipped:false,
+      borderColor:'#2D5B8E', borderWidth:1.5},
+    {label:'Viva Delta — Resultado', data:somaE('VIVA','resultado_liq'),
+      backgroundColor:'rgba(46,125,82,0.35)', borderRadius:5, borderSkipped:false,
+      borderColor:'#2E7D52', borderWidth:1.5},
+  ]},options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{labels:{font:{size:10},boxWidth:10,color:'#6B6560',padding:10}},
+      tooltip:{backgroundColor:'rgba(26,58,92,0.94)',titleColor:'#fff',bodyColor:'#cdd8e8',padding:10,cornerRadius:8,
+        callbacks:{label:c=>` ${c.dataset.label}: R$ ${c.parsed.y.toFixed(2)}M`}}
+    },
     scales:{
       x:{ticks:{font:{size:10},color:'#9E9890'},grid:{display:false},border:{display:false}},
       y:{ticks:{callback:v=>'R$'+v.toFixed(0)+'M',font:{size:10},color:'#9E9890'},grid:{color:'rgba(221,217,208,0.45)'},border:{display:false}}
@@ -1644,7 +1657,7 @@ function renderVGEmpresas() {
 
 function renderVGSemaforo() {
   const MESES_ALL = ['jan','fev','mar','abr'];
-  const todas = getEmps();
+  const todas = ['MR','VIVA'];
   const somaAll = chave => MESES_ALL.reduce((t,m)=>t+todas.reduce((s,e)=>s+((RAW[e][chave]||{})[m]||0),0),0);
   const rb  = somaAll('receita_bruta');
   const cu  = Math.abs(somaAll('custo_bens'));
@@ -1677,7 +1690,7 @@ function renderVGSemaforo() {
 
 function renderVGFrase() {
   const MESES_ALL = ['jan','fev','mar','abr'];
-  const todas = getEmps();
+  const todas = ['MR','VIVA'];
   const somaAll = chave => MESES_ALL.reduce((t,m)=>t+todas.reduce((s,e)=>s+((RAW[e][chave]||{})[m]||0),0),0);
   const somaAllMes = (chave,m) => todas.reduce((s,e)=>s+((RAW[e][chave]||{})[m]||0),0);
 
@@ -1835,71 +1848,30 @@ function abrirResumoExecutivo() {
   const st = (v, r, y) => v<r?{cls:'red',txt:'Crítico',icon:'🔴'}:v<y?{cls:'yellow',txt:'Atenção',icon:'🟡'}:{cls:'green',txt:'Satisfatório',icon:'🟢'};
   const stInv = (v, r, y) => v>r?{cls:'red',txt:'Crítico',icon:'🔴'}:v>y?{cls:'yellow',txt:'Atenção',icon:'🟡'}:{cls:'green',txt:'Satisfatório',icon:'🟢'};
 
-  // Variações mês a mês (Mar→Abr) para setas
-  const _MA = ['jan','fev','mar','abr'];
-  const somaMes = (chave, mes) => emps.reduce((s,e)=>s+((RAW[e][chave]||{})[mes]||0),0); void _MA;
-  const varPct = (chave, mesAtual, mesAnt) => {
-    const a = somaMes(chave, mesAtual), b = somaMes(chave, mesAnt);
-    return b!==0 ? ((a-b)/Math.abs(b)*100) : null;
-  };
-
-  // Calcular variações Mar→Abr
-  const vRb    = varPct('receita_bruta','abr','mar');
-  const vCu    = varPct('custo_bens','abr','mar');
-  const vDop   = varPct('desp_op','abr','mar');
-  const vLiq   = varPct('resultado_liq','abr','mar');
-
-  // Margens por mês para variação
-  const margBrutaMar  = (()=>{const rb=somaMes('receita_bruta','mar'),cu=Math.abs(somaMes('custo_bens','mar'));return rb>0?(rb-cu)/rb*100:0;})();
-  const margEbitdaMar = (()=>{const rb=somaMes('receita_bruta','mar'),cu=Math.abs(somaMes('custo_bens','mar')),dop=Math.abs(somaMes('desp_op','mar'));return rb>0?(rb-cu-dop)/rb*100:0;})();
-  const margLiqMar    = (()=>{const rb=somaMes('receita_bruta','mar'),liq=somaMes('resultado_liq','mar');return rb>0?liq/rb*100:0;})();
-
-  const vMargBruta  = margBruta  - margBrutaMar;
-  const vMargEbitda = margEbitda - margEbitdaMar;
-  const vMargLiq    = margLiq    - margLiqMar;
-
-  // Função para renderizar seta com variação
-  function seta(v, inverter) {
-    if(v===null) return '<span style="color:#9E9890;font-size:12px">—</span>';
-    const positivo = inverter ? v < 0 : v > 0;
-    const cor = positivo ? '#2E7D52' : '#B04040';
-    const arrow = v > 0 ? '▲' : '▼';
-    const bg = positivo ? '#E8F5EF' : '#FAEAEA';
-    return `<span style="display:inline-flex;align-items:center;gap:4px;background:${bg};color:${cor};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700">
-      ${arrow} ${Math.abs(v).toFixed(1)}${typeof v === 'number' && Math.abs(v) < 20 ? 'pp' : '%'}
-    </span>`;
-  }
-  function setaPct(v, inverter) {
-    if(v===null) return '<span style="color:#9E9890;font-size:12px">—</span>';
-    const positivo = inverter ? v < 0 : v > 0;
-    const cor = positivo ? '#2E7D52' : '#B04040';
-    const arrow = v > 0 ? '▲' : '▼';
-    const bg = positivo ? '#E8F5EF' : '#FAEAEA';
-    return `<span style="display:inline-flex;align-items:center;gap:4px;background:${bg};color:${cor};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700">
-      ${arrow} ${Math.abs(v).toFixed(1)}%
-    </span>`;
-  }
-
   const inds = [
-    {label:'Margem Bruta',           val:margBruta.toFixed(1)+'%',   seta:seta(vMargBruta,false),   desc:'(Rec. Bruta − Custo) / Rec. Bruta · variação vs Mar/26'},
-    {label:'Margem EBITDA',          val:margEbitda.toFixed(1)+'%',  seta:seta(vMargEbitda,false),  desc:'Lucro operacional / Rec. Bruta · variação vs Mar/26'},
-    {label:'Margem Líquida',         val:margLiq.toFixed(1)+'%',     seta:seta(vMargLiq,false),     desc:'Resultado Líquido / Rec. Bruta · variação vs Mar/26'},
-    {label:'Custo / Receita',        val:pctCusto.toFixed(1)+'%',    seta:setaPct(vCu,true),        desc:'Custo dos bens sobre a receita total · variação vs Mar/26'},
-    {label:'Despesas Oper. / Rec.',  val:pctDesp.toFixed(1)+'%',     seta:setaPct(vDop,true),       desc:'Peso das despesas administrativas · variação vs Mar/26'},
-    {label:'Carga Tributária / Rec.',val:pctRet.toFixed(1)+'%',      seta:'<span style="color:#9E9890;font-size:12px">ref.</span>', desc:'Provisão CSLL/IRPJ sobre a receita'},
-    {label:'Receita Bruta Acum.',    val:fmt(rb),                     seta:setaPct(vRb,false),       desc:'Total acumulado Jan–Abr 2026 · variação Abr vs Mar'},
-    {label:'Resultado Líquido Acum.',val:fmt(liq),                    seta:setaPct(vLiq,false),      desc:'Lucro após todos os encargos · variação Abr vs Mar'},
-    {label:'Ativo Total (Abr/26)',   val:fmt(ativo),                  seta:'<span style="color:#9E9890;font-size:12px">ref.</span>', desc:'Patrimônio total consolidado'},
+    {label:'Margem Bruta',           val:margBruta.toFixed(1)+'%',   st:st(margBruta,20,30),   desc:'(Rec. Bruta − Custo) / Rec. Bruta'},
+    {label:'Margem EBITDA',          val:margEbitda.toFixed(1)+'%',  st:st(margEbitda,15,25),  desc:'Lucro operacional antes de juros e impostos'},
+    {label:'Margem Líquida',         val:margLiq.toFixed(1)+'%',     st:st(margLiq,10,18),     desc:'Resultado Líquido / Receita Bruta'},
+    {label:'Custo / Receita',        val:pctCusto.toFixed(1)+'%',    st:stInv(pctCusto,70,50), desc:'Custo dos bens sobre a receita total'},
+    {label:'Despesas Oper. / Rec.',  val:pctDesp.toFixed(1)+'%',     st:stInv(pctDesp,20,10),  desc:'Peso das despesas administrativas'},
+    {label:'Carga Tributária / Rec.',val:pctRet.toFixed(1)+'%',      st:stInv(pctRet,5,3),     desc:'Provisão CSLL/IRPJ sobre a receita'},
+    {label:'Receita Bruta Acum.',    val:fmt(rb),                     st:{cls:'green',txt:'Referência',icon:'📌'}, desc:'Total acumulado Jan–Abr 2026'},
+    {label:'Resultado Líquido Acum.',val:fmt(liq),                    st:liq>=0?{cls:'green',txt:'Positivo',icon:'🟢'}:{cls:'red',txt:'Negativo',icon:'🔴'}, desc:'Lucro após todos os encargos'},
+    {label:'Ativo Total (Abr/26)',   val:fmt(ativo),                  st:{cls:'green',txt:'Referência',icon:'📌'}, desc:'Patrimônio total consolidado'},
   ];
 
   document.getElementById('resumoIndicadores').innerHTML = inds.map(i=>`
     <div class="ind-row">
+      <div class="ind-icon">${i.st.icon}</div>
       <div>
         <div class="ind-label">${i.label}</div>
         <div style="font-size:11px;color:#9E9890;margin-top:1px">${i.desc}</div>
       </div>
       <div class="ind-val">${i.val}</div>
-      <div class="ind-status" style="justify-content:flex-end">${i.seta}</div>
+      <div class="ind-status">
+        <div class="ind-dot-lg ${i.st.cls}"></div>
+        <span class="ind-status-txt ${i.st.cls}">${i.st.txt}</span>
+      </div>
     </div>`).join('');
 
   // Alertas por empresa
@@ -1959,9 +1931,66 @@ function imprimirResumo() {
   window.print();
 }
 
+
+// ══ GOOGLE SHEETS INTEGRATION ══
+const _PROXY='https://script.google.com/macros/s/AKfycbx3jcXycn-jg6yzRvsbgg7Y_IOLlo4vgxrfdc7wIumhD1ffw9bBvhaoShWrnCsIiXFH/exec';
+const _MCOL={jan:2,fev:4,mar:6,abr:8};
+let _loaded=false;
+
+function _parseAba(rows){
+  const r={};
+  const desc_map=[
+    ['receita bruta','receita_bruta'],['rec. unid','rec_unidades'],
+    ['dedu','deducoes'],['receita liq','receita_liq'],
+    ['custo','custo_bens'],['outras rec','outras_rec_op'],
+    ['rec. financ','rec_financeiras'],['desp. operac','desp_op'],
+    ['salár','salarios'],['serviços','servicos_pj'],
+    ['alugué','alugueis'],['cartório','desp_cartorio'],
+    ['tribut','desp_trib'],['outras desp','outras_desp_op'],
+    ['desp. financ','desp_financeiras'],['csll','ret'],['irpj','ret'],
+    ['resultado líq','resultado_liq'],['ativo total','ativo_total']
+  ];
+  rows.slice(1).forEach(row=>{
+    const desc=String(row[1]||'').toLowerCase();
+    let chave=null;
+    for(const [k,v] of desc_map){if(desc.includes(k)){chave=v;break;}}
+    if(!chave)return;
+    if(!r[chave])r[chave]={jan:0,fev:0,mar:0,abr:0};
+    ['jan','fev','mar','abr'].forEach((m,i)=>{
+      let val=parseFloat(row[2+i*2])||0;
+      const dc=String(row[3+i*2]||'').trim();
+      if(dc==='D')val=-Math.abs(val);
+      else if(dc==='C')val=Math.abs(val);
+      r[chave][m]=(r[chave][m]||0)+val;
+    });
+  });
+  return r;
+}
+
+async function carregarDadosSheets(){
+  if(_loaded)return;
+  try{
+    const [mr,viva]=await Promise.all([
+      fetch(_PROXY+'?aba=MR_DELTA').then(r=>r.json()),
+      fetch(_PROXY+'?aba=VIVA_DELTA').then(r=>r.json())
+    ]);
+    if(Array.isArray(mr)&&mr.length>1)Object.assign(RAW.MR,_parseAba(mr));
+    if(Array.isArray(viva)&&viva.length>1)Object.assign(RAW.VIVA,_parseAba(viva));
+    _loaded=true;
+    console.log('Dados carregados do Google Sheets ✓');
+    const t=document.querySelector('.screen.active');
+    if(t){
+      if(t.id==='screen-visao-geral')initVisaoGeral();
+      if(t.id==='screen-indicadores')renderIndicadores();
+    }
+  }catch(e){console.warn('Sheets offline, usando dados locais');}
+}
+// ══ FIM SHEETS ══
+
 // INIT
 renderPoptBtns();
 _showLogin();
+carregarDadosSheets();
 document.getElementById("topbarRow2").classList.add("hidden");
 document.getElementById("btnResumoExec").addEventListener("click", abrirResumoExecutivo);
 initVisaoGeral();
