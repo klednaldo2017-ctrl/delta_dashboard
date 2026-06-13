@@ -1835,30 +1835,71 @@ function abrirResumoExecutivo() {
   const st = (v, r, y) => v<r?{cls:'red',txt:'Crítico',icon:'🔴'}:v<y?{cls:'yellow',txt:'Atenção',icon:'🟡'}:{cls:'green',txt:'Satisfatório',icon:'🟢'};
   const stInv = (v, r, y) => v>r?{cls:'red',txt:'Crítico',icon:'🔴'}:v>y?{cls:'yellow',txt:'Atenção',icon:'🟡'}:{cls:'green',txt:'Satisfatório',icon:'🟢'};
 
+  // Variações mês a mês (Mar→Abr) para setas
+  const _MA = ['jan','fev','mar','abr'];
+  const somaMes = (chave, mes) => emps.reduce((s,e)=>s+((RAW[e][chave]||{})[mes]||0),0); void _MA;
+  const varPct = (chave, mesAtual, mesAnt) => {
+    const a = somaMes(chave, mesAtual), b = somaMes(chave, mesAnt);
+    return b!==0 ? ((a-b)/Math.abs(b)*100) : null;
+  };
+
+  // Calcular variações Mar→Abr
+  const vRb    = varPct('receita_bruta','abr','mar');
+  const vCu    = varPct('custo_bens','abr','mar');
+  const vDop   = varPct('desp_op','abr','mar');
+  const vLiq   = varPct('resultado_liq','abr','mar');
+
+  // Margens por mês para variação
+  const margBrutaMar  = (()=>{const rb=somaMes('receita_bruta','mar'),cu=Math.abs(somaMes('custo_bens','mar'));return rb>0?(rb-cu)/rb*100:0;})();
+  const margEbitdaMar = (()=>{const rb=somaMes('receita_bruta','mar'),cu=Math.abs(somaMes('custo_bens','mar')),dop=Math.abs(somaMes('desp_op','mar'));return rb>0?(rb-cu-dop)/rb*100:0;})();
+  const margLiqMar    = (()=>{const rb=somaMes('receita_bruta','mar'),liq=somaMes('resultado_liq','mar');return rb>0?liq/rb*100:0;})();
+
+  const vMargBruta  = margBruta  - margBrutaMar;
+  const vMargEbitda = margEbitda - margEbitdaMar;
+  const vMargLiq    = margLiq    - margLiqMar;
+
+  // Função para renderizar seta com variação
+  function seta(v, inverter) {
+    if(v===null) return '<span style="color:#9E9890;font-size:12px">—</span>';
+    const positivo = inverter ? v < 0 : v > 0;
+    const cor = positivo ? '#2E7D52' : '#B04040';
+    const arrow = v > 0 ? '▲' : '▼';
+    const bg = positivo ? '#E8F5EF' : '#FAEAEA';
+    return `<span style="display:inline-flex;align-items:center;gap:4px;background:${bg};color:${cor};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700">
+      ${arrow} ${Math.abs(v).toFixed(1)}${typeof v === 'number' && Math.abs(v) < 20 ? 'pp' : '%'}
+    </span>`;
+  }
+  function setaPct(v, inverter) {
+    if(v===null) return '<span style="color:#9E9890;font-size:12px">—</span>';
+    const positivo = inverter ? v < 0 : v > 0;
+    const cor = positivo ? '#2E7D52' : '#B04040';
+    const arrow = v > 0 ? '▲' : '▼';
+    const bg = positivo ? '#E8F5EF' : '#FAEAEA';
+    return `<span style="display:inline-flex;align-items:center;gap:4px;background:${bg};color:${cor};padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700">
+      ${arrow} ${Math.abs(v).toFixed(1)}%
+    </span>`;
+  }
+
   const inds = [
-    {label:'Margem Bruta',           val:margBruta.toFixed(1)+'%',   st:st(margBruta,20,30),   desc:'(Rec. Bruta − Custo) / Rec. Bruta'},
-    {label:'Margem EBITDA',          val:margEbitda.toFixed(1)+'%',  st:st(margEbitda,15,25),  desc:'Lucro operacional antes de juros e impostos'},
-    {label:'Margem Líquida',         val:margLiq.toFixed(1)+'%',     st:st(margLiq,10,18),     desc:'Resultado Líquido / Receita Bruta'},
-    {label:'Custo / Receita',        val:pctCusto.toFixed(1)+'%',    st:stInv(pctCusto,70,50), desc:'Custo dos bens sobre a receita total'},
-    {label:'Despesas Oper. / Rec.',  val:pctDesp.toFixed(1)+'%',     st:stInv(pctDesp,20,10),  desc:'Peso das despesas administrativas'},
-    {label:'Carga Tributária / Rec.',val:pctRet.toFixed(1)+'%',      st:stInv(pctRet,5,3),     desc:'Provisão CSLL/IRPJ sobre a receita'},
-    {label:'Receita Bruta Acum.',    val:fmt(rb),                     st:{cls:'green',txt:'Referência',icon:'📌'}, desc:'Total acumulado Jan–Abr 2026'},
-    {label:'Resultado Líquido Acum.',val:fmt(liq),                    st:liq>=0?{cls:'green',txt:'Positivo',icon:'🟢'}:{cls:'red',txt:'Negativo',icon:'🔴'}, desc:'Lucro após todos os encargos'},
-    {label:'Ativo Total (Abr/26)',   val:fmt(ativo),                  st:{cls:'green',txt:'Referência',icon:'📌'}, desc:'Patrimônio total consolidado'},
+    {label:'Margem Bruta',           val:margBruta.toFixed(1)+'%',   seta:seta(vMargBruta,false),   desc:'(Rec. Bruta − Custo) / Rec. Bruta · variação vs Mar/26'},
+    {label:'Margem EBITDA',          val:margEbitda.toFixed(1)+'%',  seta:seta(vMargEbitda,false),  desc:'Lucro operacional / Rec. Bruta · variação vs Mar/26'},
+    {label:'Margem Líquida',         val:margLiq.toFixed(1)+'%',     seta:seta(vMargLiq,false),     desc:'Resultado Líquido / Rec. Bruta · variação vs Mar/26'},
+    {label:'Custo / Receita',        val:pctCusto.toFixed(1)+'%',    seta:setaPct(vCu,true),        desc:'Custo dos bens sobre a receita total · variação vs Mar/26'},
+    {label:'Despesas Oper. / Rec.',  val:pctDesp.toFixed(1)+'%',     seta:setaPct(vDop,true),       desc:'Peso das despesas administrativas · variação vs Mar/26'},
+    {label:'Carga Tributária / Rec.',val:pctRet.toFixed(1)+'%',      seta:'<span style="color:#9E9890;font-size:12px">ref.</span>', desc:'Provisão CSLL/IRPJ sobre a receita'},
+    {label:'Receita Bruta Acum.',    val:fmt(rb),                     seta:setaPct(vRb,false),       desc:'Total acumulado Jan–Abr 2026 · variação Abr vs Mar'},
+    {label:'Resultado Líquido Acum.',val:fmt(liq),                    seta:setaPct(vLiq,false),      desc:'Lucro após todos os encargos · variação Abr vs Mar'},
+    {label:'Ativo Total (Abr/26)',   val:fmt(ativo),                  seta:'<span style="color:#9E9890;font-size:12px">ref.</span>', desc:'Patrimônio total consolidado'},
   ];
 
   document.getElementById('resumoIndicadores').innerHTML = inds.map(i=>`
     <div class="ind-row">
-      <div class="ind-icon">${i.st.icon}</div>
       <div>
         <div class="ind-label">${i.label}</div>
         <div style="font-size:11px;color:#9E9890;margin-top:1px">${i.desc}</div>
       </div>
       <div class="ind-val">${i.val}</div>
-      <div class="ind-status">
-        <div class="ind-dot-lg ${i.st.cls}"></div>
-        <span class="ind-status-txt ${i.st.cls}">${i.st.txt}</span>
-      </div>
+      <div class="ind-status" style="justify-content:flex-end">${i.seta}</div>
     </div>`).join('');
 
   // Alertas por empresa
