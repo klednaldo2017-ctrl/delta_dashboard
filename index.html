@@ -342,7 +342,41 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   border:none !important;
   box-shadow:none !important;
 }
+
+.com-kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.com-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);border-top:3px solid #9E9890}
+.com-kpi.green{border-top-color:#2E7D52}.com-kpi.blue{border-top-color:#2D5B8E}.com-kpi.orange{border-top-color:#B07830}.com-kpi.navy{border-top-color:#1A3A5C}.com-kpi.gray{border-top-color:#6B6560}
+.com-kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:4px}
+.com-kpi-val{font-size:20px;font-weight:800;color:var(--text);display:flex;align-items:baseline;gap:6px}
+.com-kpi-pct{font-size:12px;font-weight:600;color:#2E7D52;background:#E8F5EF;padding:2px 7px;border-radius:20px}
+.com-filtros{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.com-filtros select{padding:7px 12px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;background:var(--surface);color:var(--text);outline:none;cursor:pointer}
+.com-emp-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.com-emp-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s}
+.com-emp-card:hover,.com-emp-card.active{border-color:var(--accent2);box-shadow:0 4px 16px rgba(45,91,142,0.15)}
+.com-emp-card.active{background:#EEF3F9}
+.com-emp-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.com-emp-nome{font-size:12px;font-weight:700;color:var(--text);line-height:1.3}
+.com-emp-empresa{font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px}
+.com-emp-empresa.mr{background:#EEF3F9;color:#2D5B8E}.com-emp-empresa.viva{background:#E8F5EF;color:#2E7D52}
+.com-emp-barra-wrap{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.com-emp-barra{flex:1;height:6px;background:#F0EDE8;border-radius:3px;overflow:hidden;position:relative}
+.com-emp-barra-fill{position:absolute;height:100%;top:0;transition:width .4s}
+.com-emp-barra-fill.vendida{background:#2E7D52;left:0}
+.com-emp-barra-fill.precontrato{background:#2D5B8E}
+.com-emp-pct{font-size:11px;font-weight:800;color:var(--text);white-space:nowrap}
+.com-emp-stats{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.com-emp-stats span{font-size:10px;color:var(--text3)}
+.com-emp-vgv{font-size:10px;color:var(--text3);border-top:1px solid var(--border);padding-top:6px;margin-top:4px}
+.com-graficos-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.com-grafico-card{background:transparent}
+.com-grafico-titulo{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.com-grafico-sub{font-size:11px;color:var(--text3);margin-bottom:10px}
+#comMapa{height:380px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-top:4px}
+
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -457,10 +491,51 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <div class="placeholder"><div class="icon">📤</div><h3>Saídas</h3><p>Custos, despesas e pagamentos.</p><span class="badge-soon">EM BREVE</span></div>
     </div>
     <div class="screen" id="screen-comercial">
-      <div class="placeholder"><div class="icon">🏗️</div><h3>Comercial</h3><p>Velocidade de vendas e empreendimentos.</p><span class="badge-soon">EM BREVE</span></div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:22px;font-weight:800;color:var(--text)">Comercial</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:2px">Vendas e estoque por empreendimento</div>
+      </div>
+      <div class="com-filtros">
+        <select id="comFiltroEmpreend" onchange="comEmpFiltroNome=this.value||null;renderComCards();renderComGraficos()">
+          <option value="">Todos os empreendimentos</option>
+        </select>
+        <select onchange="comStatusFiltro=this.value;renderComCards();renderComGraficos()">
+          <option value="todos">Todos os status</option>
+          <option value="vendida">Vendidas</option>
+          <option value="disponivel">Disponíveis</option>
+          <option value="precontrato">Pré-contrato</option>
+        </select>
+      </div>
+      <div class="com-kpi-grid" id="comKpis"></div>
+      <div class="com-emp-grid" id="comEmprCards"></div>
+      <div style="border-top:1.5px solid var(--border);margin:4px 0 16px"></div>
+      <div class="com-graficos-grid">
+        <div class="com-grafico-card">
+          <div class="com-grafico-titulo">Status das Unidades</div>
+          <div class="com-grafico-sub">Distribuição por situação comercial</div>
+          <div style="position:relative;height:220px"><canvas id="comChartPizza"></canvas></div>
+        </div>
+        <div class="com-grafico-card">
+          <div class="com-grafico-titulo">Unidades por Empreendimento</div>
+          <div class="com-grafico-sub">Vendidas · Pré-contrato · Disponíveis</div>
+          <div style="position:relative;height:220px"><canvas id="comChartBarras"></canvas></div>
+        </div>
+      </div>
+      <div style="border-top:1.5px solid var(--border);margin:8px 0 16px"></div>
+      <div class="com-grafico-card" style="margin-bottom:16px">
+        <div class="com-grafico-titulo">Evolução Mensal de Vendas</div>
+        <div class="com-grafico-sub">Unidades comercializadas e VGV — últimos 12 meses</div>
+        <div style="position:relative;height:220px"><canvas id="comChartEvolucao"></canvas></div>
+      </div>
+      <div style="border-top:1.5px solid var(--border);margin:8px 0 16px"></div>
+      <div class="com-grafico-card">
+        <div class="com-grafico-titulo">📍 Mapa dos Empreendimentos</div>
+        <div class="com-grafico-sub">Localização e status — clique no marcador para detalhes</div>
+        <div id="comMapa"></div>
+      </div>
     </div>
 
-    <!-- ══════════ INDICADORES ══════════ -->
+    <!-- ══════════ INDICADORES <!-- ══════════ INDICADORES ══════════ -->
     <div class="screen" id="screen-indicadores">
       <div class="kpi-grid" id="kpiGrid"></div>
       <div style="margin-bottom:16px">
@@ -1246,7 +1321,7 @@ document.querySelectorAll('.emp-btn').forEach(btn=>{
     empresaAtiva=btn.dataset.emp;
     const telaAtiva = document.querySelector('.screen.active');
     if(telaAtiva && telaAtiva.id==='screen-visao-geral') initVisaoGeral();
-    else renderIndicadores();
+    else if(telaAtiva && telaAtiva.id==='screen-indicadores') renderIndicadores();
   });
 });
 
@@ -1986,6 +2061,145 @@ async function carregarDadosSheets(){
   }catch(e){console.warn('Sheets offline, usando dados locais');}
 }
 // ══ FIM SHEETS ══
+
+
+// ══ COMERCIAL ══
+const COMERC={"Villa Jardim 01": {"empresa": "Viva Delta", "nome": "Villa Jardim 01", "nome_full": "272 - 3R/DELTA - COMERCIAL VILLA JARDIM 01", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 46089500, "ticket": 138824, "pct_vendido": 96.4, "v_mes": {"2025-04": 63, "2025-05": 95, "2025-06": 82, "2025-07": 39, "2025-08": 41, "2025-09": 60, "2025-10": 72, "2025-11": 56, "2025-12": 29, "2026-01": 72, "2026-02": 44, "2026-03": 16}, "lat": -7.0487, "lng": -34.9121}, "Villa Jardim 02": {"empresa": "Viva Delta", "nome": "Villa Jardim 02", "nome_full": "316 - 3R/DELTA - COMERCIAL VILLA JARDIM-02", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 50912000, "ticket": 153349, "pct_vendido": 96.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0492, "lng": -34.9115}, "Villa Jardim 04": {"empresa": "Viva Delta", "nome": "Villa Jardim 04", "nome_full": "328 - 3R/DELTA - COMERCIAL VILLA JARDIM 04 - lote 2071", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 54464000, "ticket": 164048, "pct_vendido": 96.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0482, "lng": -34.9118}, "Villa Jardim 05": {"empresa": "Viva Delta", "nome": "Villa Jardim 05", "nome_full": "329 - 3R/DELTA - COMERCIAL VILLA JARDIM 05 - lote 0457", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 55705500, "ticket": 167788, "pct_vendido": 96.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0478, "lng": -34.9128}, "Villa Jardim 03": {"empresa": "Viva Delta", "nome": "Villa Jardim 03", "nome_full": "335 - 3R/DELTA - COMERCIAL VILLA JARDIM 03", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 52434500, "ticket": 157935, "pct_vendido": 96.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0495, "lng": -34.9125}, "Villa Jardim 06": {"empresa": "Viva Delta", "nome": "Villa Jardim 06", "nome_full": "340 - 3R DELTA - COMERCIAL VILLA JARDIM 06 - lote 0527", "total": 332, "vendidas": 320, "precontrato": 0, "proposta": 0, "disponiveis": 12, "vgv": 56080250, "ticket": 168916, "pct_vendido": 96.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0489, "lng": -34.9108}, "Villa Jardim 07": {"empresa": "Viva Delta", "nome": "Villa Jardim 07", "nome_full": "343 - 3R/DELTA - COMERCIAL VILLA JARDIM 07", "total": 332, "vendidas": 307, "precontrato": 13, "proposta": 0, "disponiveis": 12, "vgv": 62560000, "ticket": 188434, "pct_vendido": 92.5, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 0, "2025-10": 0, "2025-11": 0, "2025-12": 0, "2026-01": 0, "2026-02": 0, "2026-03": 0}, "lat": -7.0493, "lng": -34.9132}, "Villa Jardim 08": {"empresa": "Viva Delta", "nome": "Villa Jardim 08", "nome_full": "368 - 3R/DELTA - COMERCIAL VILLA JARDIM 08", "total": 332, "vendidas": 310, "precontrato": 10, "proposta": 0, "disponiveis": 12, "vgv": 62560000, "ticket": 188434, "pct_vendido": 93.4, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 66, "2025-08": 55, "2025-09": 29, "2025-10": 20, "2025-11": 14, "2025-12": 26, "2026-01": 65, "2026-02": 27, "2026-03": 8}, "lat": -7.0485, "lng": -34.9135}, "Jardins de Capri": {"empresa": "MR Delta", "nome": "Jardins de Capri", "nome_full": "350 - MRDELTA - JARDINS DE CAPRI - INCORPORACAO", "total": 392, "vendidas": 73, "precontrato": 47, "proposta": 0, "disponiveis": 272, "vgv": 121062399, "ticket": 308833, "pct_vendido": 18.6, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 5, "2025-10": 32, "2025-11": 15, "2025-12": 8, "2026-01": 5, "2026-02": 6, "2026-03": 1}, "lat": -7.1614, "lng": -34.8512}, "Montalccino": {"empresa": "MR Delta", "nome": "Montalccino", "nome_full": "391 - MRDELTA -  MONTALCCINO - INCORPORACAO", "total": 485, "vendidas": 340, "precontrato": 105, "proposta": 1, "disponiveis": 39, "vgv": 93235000, "ticket": 192237, "pct_vendido": 70.1, "v_mes": {"2025-04": 0, "2025-05": 0, "2025-06": 0, "2025-07": 0, "2025-08": 0, "2025-09": 20, "2025-10": 83, "2025-11": 82, "2025-12": 65, "2026-01": 54, "2026-02": 29, "2026-03": 7}, "lat": -7.1147, "lng": -34.8706}};
+const COMERC_MESES=["2025-04", "2025-05", "2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03"];
+const COMERC_VENDAS_MES={"2025-04": {"qtd": 63, "vgv": 1578250}, "2025-05": {"qtd": 95, "vgv": 2185000}, "2025-06": {"qtd": 82, "vgv": 2372494}, "2025-07": {"qtd": 105, "vgv": 2985536}, "2025-08": {"qtd": 96, "vgv": 2690970}, "2025-09": {"qtd": 114, "vgv": 3530933}, "2025-10": {"qtd": 207, "vgv": 8532501}, "2025-11": {"qtd": 167, "vgv": 4535600}, "2025-12": {"qtd": 128, "vgv": 4237063}, "2026-01": {"qtd": 196, "vgv": 5172418}, "2026-02": {"qtd": 106, "vgv": 3331847}, "2026-03": {"qtd": 32, "vgv": 849000}};
+const COMERC_MESES_LABS=['Abr/25','Mai/25','Jun/25','Jul/25','Ago/25','Set/25','Out/25','Nov/25','Dez/25','Jan/26','Fev/26','Mar/26'];
+let comEmpFiltro='todas',comEmpFiltroNome=null,comStatusFiltro='todos',comMapInst=null,comCharts={};
+
+function getComEmps(){
+  return Object.values(COMERC).filter(e=>{
+    if(comEmpFiltro==='mr'&&e.empresa!=='MR Delta')return false;
+    if(comEmpFiltro==='viva'&&e.empresa!=='Viva Delta')return false;
+    if(comEmpFiltroNome&&e.nome!==comEmpFiltroNome)return false;
+    return true;
+  });
+}
+
+function initComercial(){
+  renderComFiltros();renderComCards();
+  setTimeout(function(){renderComGraficos();renderComMapa();},300);
+}
+
+function renderComFiltros(){
+  const nomes=[...new Set(Object.values(COMERC).map(e=>e.nome))];
+  document.getElementById('comFiltroEmpreend').innerHTML=
+    '<option value="">Todos os empreendimentos</option>'+
+    nomes.map(n=>'<option value="'+n+'">'+n+'</option>').join('');
+}
+
+function renderComCards(){
+  const emps=getComEmps();
+  const tot=emps.reduce((s,e)=>s+e.total,0);
+  const vend=emps.reduce((s,e)=>s+e.vendidas,0);
+  const pre=emps.reduce((s,e)=>s+e.precontrato,0);
+  const disp=emps.reduce((s,e)=>s+e.disponiveis,0);
+  const vgv=emps.reduce((s,e)=>s+e.vgv,0);
+  const pct=tot>0?Math.round(vend/tot*100):0;
+  const ticket=tot>0?Math.round(vgv/tot):0;
+  document.getElementById('comKpis').innerHTML=
+    '<div class="com-kpi"><div class="com-kpi-label">Total Unidades</div><div class="com-kpi-val">'+tot.toLocaleString('pt-BR')+'</div></div>'+
+    '<div class="com-kpi green"><div class="com-kpi-label">Vendidas</div><div class="com-kpi-val">'+vend.toLocaleString('pt-BR')+'<span class="com-kpi-pct">'+pct+'%</span></div></div>'+
+    '<div class="com-kpi blue"><div class="com-kpi-label">Pré-contrato</div><div class="com-kpi-val">'+pre.toLocaleString('pt-BR')+'</div></div>'+
+    '<div class="com-kpi orange"><div class="com-kpi-label">Disponíveis</div><div class="com-kpi-val">'+disp.toLocaleString('pt-BR')+'</div></div>'+
+    '<div class="com-kpi navy"><div class="com-kpi-label">VGV Total</div><div class="com-kpi-val">'+fmt(vgv)+'</div></div>'+
+    '<div class="com-kpi gray"><div class="com-kpi-label">Ticket Médio</div><div class="com-kpi-val">'+fmt(ticket)+'</div></div>';
+  document.getElementById('comEmprCards').innerHTML=emps.map(e=>
+    '<div class="com-emp-card" onclick="comFiltrarEmp(\''+e.nome+'\')">'+
+    '<div class="com-emp-header"><div class="com-emp-nome">'+e.nome+'</div>'+
+    '<div class="com-emp-empresa '+(e.empresa==='MR Delta'?'mr':'viva')+'">'+e.empresa+'</div></div>'+
+    '<div class="com-emp-barra-wrap"><div class="com-emp-barra">'+
+    '<div class="com-emp-barra-fill vendida" style="width:'+e.pct_vendido+'%"></div>'+
+    '<div class="com-emp-barra-fill precontrato" style="width:'+Math.round(e.precontrato/e.total*100)+'%;left:'+e.pct_vendido+'%"></div>'+
+    '</div><span class="com-emp-pct">'+e.pct_vendido+'%</span></div>'+
+    '<div class="com-emp-stats"><span>🏠 '+e.total+'</span><span style="color:#2E7D52">✓ '+e.vendidas+'</span><span style="color:#4A7FA5">◑ '+e.precontrato+'</span><span style="color:#B07830">○ '+e.disponiveis+'</span></div>'+
+    '<div class="com-emp-vgv">VGV '+fmt(e.vgv)+' · Ticket '+fmt(e.ticket)+'</div></div>'
+  ).join('');
+}
+
+function comFiltrarEmp(nome){
+  comEmpFiltroNome=comEmpFiltroNome===nome?null:nome;
+  document.getElementById('comFiltroEmpreend').value=comEmpFiltroNome||'';
+  renderComCards();renderComGraficos();
+}
+
+function renderComGraficos(){
+  Object.values(comCharts).forEach(c=>{try{c.destroy();}catch(e){}});
+  comCharts={};
+  const emps=getComEmps();
+  const tot=emps.reduce((s,e)=>s+e.total,0);
+  const vend=emps.reduce((s,e)=>s+e.vendidas,0);
+  const pre=emps.reduce((s,e)=>s+e.precontrato,0);
+  const disp=emps.reduce((s,e)=>s+e.disponiveis,0);
+
+  comCharts.pizza=new Chart(document.getElementById('comChartPizza').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:['Vendidas','Pré-contrato','Disponíveis'],
+      datasets:[{data:[vend,pre,disp],backgroundColor:['#2E7D52','#2D5B8E','#B07830'],borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{font:{size:11},color:'#6B6560',padding:10}},
+        tooltip:{callbacks:{label:c=>' '+c.label+': '+c.parsed+' ('+Math.round(c.parsed/tot*100)+'%)'}}}}
+  });
+
+  comCharts.barras=new Chart(document.getElementById('comChartBarras').getContext('2d'),{
+    type:'bar',
+    data:{labels:emps.map(e=>e.nome.replace('Villa Jardim','VJ')),
+      datasets:[
+        {label:'Vendidas',data:emps.map(e=>e.vendidas),backgroundColor:'rgba(46,125,82,0.85)',borderRadius:4},
+        {label:'Pré-contrato',data:emps.map(e=>e.precontrato),backgroundColor:'rgba(45,91,142,0.85)',borderRadius:4},
+        {label:'Disponíveis',data:emps.map(e=>e.disponiveis),backgroundColor:'rgba(176,120,48,0.85)',borderRadius:4}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10},color:'#6B6560'}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{stacked:true,ticks:{font:{size:10},color:'#9E9890'},grid:{display:false}},
+              y:{stacked:true,ticks:{font:{size:10},color:'#9E9890'},grid:{color:'rgba(221,217,208,0.4)'}}}}
+  });
+
+  const qtdMes=COMERC_MESES.map(m=>emps.reduce((s,e)=>s+(e.v_mes[m]||0),0));
+  const vgvMes=COMERC_MESES.map(m=>COMERC_VENDAS_MES[m]?.vgv||0);
+  comCharts.ev=new Chart(document.getElementById('comChartEvolucao').getContext('2d'),{
+    type:'bar',
+    data:{labels:COMERC_MESES_LABS,
+      datasets:[
+        {label:'Unidades',data:qtdMes,backgroundColor:'rgba(45,91,142,0.75)',borderRadius:4,yAxisID:'y'},
+        {label:'VGV',data:vgvMes,type:'line',borderColor:'#2E7D52',backgroundColor:'rgba(46,125,82,0.1)',
+          fill:true,tension:0.4,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#2E7D52',yAxisID:'y1'}
+      ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:10},color:'#6B6560'}},tooltip:{mode:'index',intersect:false}},
+      scales:{x:{ticks:{font:{size:10},color:'#9E9890'},grid:{display:false}},
+              y:{position:'left',ticks:{font:{size:10},color:'#9E9890'},grid:{color:'rgba(221,217,208,0.4)'}},
+              y1:{position:'right',ticks:{font:{size:10},color:'#9E9890',callback:v=>'R$'+Math.round(v/1e6)+'M'},grid:{display:false}}}}
+  });
+}
+
+function renderComMapa(){
+  if(comMapInst){comMapInst.remove();comMapInst=null;}
+  const map=L.map('comMapa').setView([-7.09,-34.89],12);
+  comMapInst=map;
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {attribution:'© OpenStreetMap © CartoDB',maxZoom:19}).addTo(map);
+  Object.values(COMERC).forEach(e=>{
+    const cor=e.empresa==='MR Delta'?'#2D5B8E':'#2E7D52';
+    const raio=16+Math.round(e.total/50);
+    L.circleMarker([e.lat,e.lng],{radius:raio,fillColor:cor,color:'#fff',weight:2,fillOpacity:0.85})
+      .addTo(map)
+      .bindPopup('<div style="font-family:Segoe UI,sans-serif;min-width:180px"><b style="color:#1A3A5C">'+e.nome+'</b><br>'+
+        '<small style="color:#6B6560">'+e.empresa+'</small><hr style="margin:6px 0">'+
+        '🏠 Total: <b>'+e.total+'</b><br>'+
+        '<span style="color:#2E7D52">✓ Vendidas: <b>'+e.vendidas+' ('+e.pct_vendido+'%)</b></span><br>'+
+        '<span style="color:#B07830">○ Disponíveis: <b>'+e.disponiveis+'</b></span><br>'+
+        '<hr style="margin:6px 0">VGV: <b>'+fmt(e.vgv)+'</b><br>Ticket: <b>'+fmt(e.ticket)+'</b>'+
+        '<div style="background:#eee;border-radius:3px;height:5px;margin-top:8px">'+
+        '<div style="background:'+cor+';width:'+e.pct_vendido+'%;height:100%;border-radius:3px"></div></div></div>',
+        {maxWidth:220});
+    L.marker([e.lat,e.lng],{icon:L.divIcon({html:'<div style="color:#fff;font-weight:800;font-size:10px;text-align:center;margin-top:-2px">'+e.pct_vendido+'%</div>',className:'',iconSize:[36,18],iconAnchor:[18,9]})}).addTo(map);
+  });
+}
+// ══ FIM COMERCIAL ══
 
 // INIT
 renderPoptBtns();
